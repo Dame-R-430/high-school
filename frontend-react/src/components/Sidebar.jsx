@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 
-export default function Sidebar({ title, subtitle, navItems, activePage, onNav, onPasswordModal, children }) {
+export default function Sidebar({ title, subtitle, navItems, activePage, onNav, onPasswordModal, badge = {}, children }) {
   const { logout } = useAuth()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState({})
@@ -74,6 +74,11 @@ export default function Sidebar({ title, subtitle, navItems, activePage, onNav, 
               onClick={() => onNav(item.id)}
             >
               <span className="nav-icon">{item.icon}</span> {item.label}
+              {badge[item.id] > 0 && (
+                <span style={{ marginLeft: 'auto', background: '#e74c3c', color: '#fff', borderRadius: 20, padding: '1px 8px', fontSize: 11, fontWeight: 'bold' }}>
+                  {badge[item.id]}
+                </span>
+              )}
             </div>
           )
         })}

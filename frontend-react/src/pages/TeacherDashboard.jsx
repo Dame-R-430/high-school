@@ -5,12 +5,16 @@ import Alert from '../components/Alert'
 import ChangePasswordModal from '../components/ChangePasswordModal'
 import api from '../services/api'
 import Settings from './Settings'
+import ProfilePage from '../components/ProfilePage'
+import SharedTopStudents from '../components/SharedTopStudents'
 
 const NAV = [
+  { id: 'profile',     icon: '👤', label: 'Profile' },
   { id: 'courses',     icon: '📚', label: 'My Courses' },
   { id: 'submitGrade', icon: '✏️', label: 'Submit Grade' },
   { id: 'editRequest', icon: '🔄', label: 'Request Edit' },
-  { id: 'settings',   icon: '⚙️', label: 'Settings' },
+  { id: 'topStudents', icon: '🏆', label: 'Top Students' },
+  { id: 'settings',    icon: '⚙️', label: 'Settings' },
 ]
 
 export default function TeacherDashboard() {
@@ -25,11 +29,14 @@ export default function TeacherDashboard() {
   const [gradeForm, setGradeForm] = useState({ studentId: '', subjectId: '', score: '', semester: '1', ng: false })
   const [editForm, setEditForm] = useState({ studentId: '', gradeId: '', newScore: '', reason: '' })
   const [studentGrades, setStudentGrades] = useState([])
+  const [activePeriod, setActivePeriod] = useState(null)
+  const [periodLoaded, setPeriodLoaded] = useState(false)
 
   const showAlert = (msg, type = 'success') => setAlert({ msg, type })
 
   useEffect(() => {
     loadCourses(); loadStudents()
+    api.get('/grading-periods/active').then(p => { setActivePeriod(p); setPeriodLoaded(true) }).catch(() => setPeriodLoaded(true))
   }, [])
 
   async function loadCourses() {
@@ -72,6 +79,9 @@ export default function TeacherDashboard() {
       <main className="main-content">
         <Alert message={alert.msg} type={alert.type} onClose={() => setAlert({ msg: '' })} />
 
+        {/* Profile */}
+        {page === 'profile' && <ProfilePage onAlert={showAlert} />}
+
         {/* My Courses */}
         {page === 'courses' && (
           <div>
@@ -95,6 +105,22 @@ export default function TeacherDashboard() {
         {page === 'submitGrade' && (
           <div>
             <div className="page-title">Submit Grade</div>
+
+            {/* Grading period status banner */}
+            {periodLoaded && (
+              <div style={{
+                padding: '10px 16px', borderRadius: 8, marginBottom: 16, fontSize: 13,
+                background: activePeriod ? '#e6f4ea' : '#fdecea',
+                border: `1px solid ${activePeriod ? '#34a853' : '#ea4335'}`,
+                color: activePeriod ? '#1e7e34' : '#c62828'
+              }}>
+                {activePeriod
+                  ? `🟢 Grading open: ${activePeriod.label} — closes ${new Date(activePeriod.closeDate).toLocaleDateString()}`
+                  : '🔴 Grade submission is currently locked. No active grading period.'}
+              </div>
+            )}
+
+            {activePeriod ? (
             <div className="card" style={{ maxWidth: 500 }}>
               <form onSubmit={submitGrade}>
                 <div className="form-group">
@@ -148,6 +174,7 @@ export default function TeacherDashboard() {
                 <button type="submit" className="btn btn-primary">Submit Grade</button>
               </form>
             </div>
+            ) : null}
           </div>
         )}
 
@@ -230,6 +257,9 @@ export default function TeacherDashboard() {
 
         {/* Settings */}
         {page === 'settings' && <Settings />}
+
+        {/* Top Students — shared by admin, read-only */}
+        {page === 'topStudents' && <SharedTopStudents />}
 
       </main>
 

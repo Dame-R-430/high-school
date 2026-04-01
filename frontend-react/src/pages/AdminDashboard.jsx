@@ -6,8 +6,10 @@ import ChangePasswordModal from '../components/ChangePasswordModal'
 import Modal from '../components/Modal'
 import api from '../services/api'
 import Settings from './Settings'
+import ProfilePage from '../components/ProfilePage'
 
 const NAV = [
+  { id: 'profile',       icon: '👤', label: 'Profile' },
   { id: 'overview',      icon: '🏠', label: 'Overview' },
   { id: 'registrations', icon: '📝', label: 'Registrations' },
   { id: 'students',      icon: '🎓', label: 'Students', isGroup: true },
@@ -22,13 +24,16 @@ const NAV = [
   { id: 'subj11',        icon: '·',  label: 'Grade 11', indent: true },
   { id: 'subj12',        icon: '·',  label: 'Grade 12', indent: true },
   { id: 'grades',        icon: '📊', label: 'Grades' },
+  { id: 'rankings',      icon: '🏆', label: 'Rankings' },
+  { id: 'gradingPeriod', icon: '📅', label: 'Grading Period' },
   { id: 'editRequests',  icon: '✏️', label: 'Edit Requests' },
+  { id: 'notifications', icon: '🔔', label: 'Notifications' },
   { id: 'settings',      icon: '⚙️', label: 'Settings' },
 ]
 
 export default function AdminDashboard() {
   const { user } = useAuth()
-  const [page, setPage] = useState('overview')
+  const [page, setPage] = useState('profile')
   const [alert, setAlert] = useState({ msg: '', type: 'success' })
   const [showPwModal, setShowPwModal] = useState(false)
   const [showCourseModal, setShowCourseModal] = useState(false)
@@ -43,6 +48,13 @@ export default function AdminDashboard() {
   const [subjects, setSubjects] = useState([])
   const [grades, setGrades] = useState([])
   const [editRequests, setEditRequests] = useState([])
+  const [profileRequests, setProfileRequests] = useState([])
+  const [notifCount, setNotifCount] = useState(0)
+  const [gradingPeriods, setGradingPeriods] = useState([])
+  const [periodForm, setPeriodForm] = useState({ label: '', openDate: '', closeDate: '' })
+  const [classRankings, setClassRankings] = useState([])
+  const [top3, setTop3] = useState([])
+  const [rankFilter, setRankFilter] = useState({ grade: '9', section: 'A', academicYear: new Date().getFullYear() })
   const [filterGrade, setFilterGrade] = useState('')
   const [filterYear, setFilterYear] = useState('')
   const [photoModal, setPhotoModal] = useState(null)
@@ -67,7 +79,7 @@ export default function AdminDashboard() {
     } catch {}
   }, [])
 
-  useEffect(() => { loadOverview() }, [])
+  useEffect(() => { loadOverview(); loadProfileRequests() }, [])
 
   async function navigate(id) {
     setPage(id)
@@ -87,6 +99,9 @@ export default function AdminDashboard() {
     if (id === 'subjects') loadSubjects()
     if (id === 'grades') loadGrades()
     if (id === 'editRequests') loadEditRequests()
+    if (id === 'notifications') { loadProfileRequests(); loadRegistrations(); loadEditRequests() }
+    if (id === 'gradingPeriod') loadGradingPeriods()
+    if (id === 'rankings') { loadClassRankings(); loadTop3() }
   }
 
   // ── Registrations ──
@@ -206,6 +221,67 @@ export default function AdminDashboard() {
   async function loadEditRequests() {
     const data = await api.get('/grades/edit-requests'); setEditRequests(data)
   }
+
+  async function loadProfileRequests() {
+    const [profileReqs, studentRegs, gradeEdits] = await Promise.all([
+      api.get('/profile-requests/pending'),
+      api.get('/registrations/pending'),
+      api.get('/grades/edit-requests')
+    ])
+    const pendingGradeEdits = gradeEdits.filter(r => r.status === 'pending')
+    setProfileRequests(profileReqs)
+    setNotifCount(profileReqs.length + studentRegs.length + pendingGradeEdits.length)
+  }
+
+  async function handleProfileRequest(id, status) {
+    await api.put(`/profile-requests/${id}`, { status })
+    showAlert(`Request ${status}`)
+    loadProfileRequests()
+  }
+
+  async function loadGradingPeriods() {
+    const data = await api.get('/grading-periods')
+    setGradingPeriods(data)
+  }
+
+  async function createPeriod(e) {
+    e.preventDefault()
+    try {
+      await api.post('/grading-periods', periodForm)
+      showAlert('Grading period created')
+      setPeriodForm({ label: '', openDate: '', closeDate: '' })
+      loadGradingPeriods()
+    } catch (err) { showAlert(err.message || 'Failed', 'error') }
+  }
+
+  async function deletePeriod(id) {
+    if (!confirm('Delete this grading period?')) return
+    await api.delete(`/grading-periods/${id}`)
+    showAlert('Grading period deleted')
+    loadGradingPeriods()
+  }
+
+  async function loadClassRankings(filter = rankFilter) {
+    try {
+      const data = await api.get(`/rankings/class?grade=${filter.grade}&section=${filter.section}&academicYear=${filter.academicYear}`)
+      setClassRankings(data)
+    } catch { setClassRankings([]) }
+  }
+
+  async function loadTop3() {
+    try {
+      const data = await api.get(`/rankings/top3?academicYear=${new Date().getFullYear()}`)
+      setTop3(data)
+    } catch { setTop3([]) }
+  }
+
+  async function shareTop3() {
+    if (!confirm('Share top 3 results with all teachers and students?')) return
+    try {
+      await api.post('/rankings/share', { academicYear: new Date().getFullYear() })
+      showAlert('Top 3 results shared successfully')
+    } catch (err) { showAlert(err.message || 'Failed to share', 'error') }
+  }
   async function handleRequest(id, status) {
     await api.put(`/grades/edit-requests/${id}`, { status })
     showAlert(`Request ${status}`); loadEditRequests(); loadGrades()
@@ -213,10 +289,13 @@ export default function AdminDashboard() {
 
   return (
     <div className="dashboard-layout">
-      <Sidebar title="⚙️ Admin Panel" subtitle={user?.name} navItems={NAV} activePage={page} onNav={navigate} onPasswordModal={() => setShowPwModal(true)} />
+      <Sidebar title="⚙️ Admin Panel" subtitle={user?.name} navItems={NAV} activePage={page} onNav={navigate} onPasswordModal={() => setShowPwModal(true)} badge={{ notifications: notifCount }} />
 
       <main className="main-content">
         <Alert message={alert.msg} type={alert.type} onClose={() => setAlert({ msg: '' })} />
+
+        {/* Profile */}
+        {page === 'profile' && <ProfilePage onAlert={showAlert} />}
 
         {/* Overview */}
         {page === 'overview' && (
@@ -424,6 +503,220 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+        {/* Rankings */}
+        {page === 'rankings' && (
+          <div>
+            <div className="page-title">Rankings</div>
+
+            {/* Top 3 school-wide */}
+            <div className="card" style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3 style={{ fontSize: 15, color: 'var(--text-secondary)' }}>🏆 Top 3 Students — School Wide</h3>
+                <button className="btn btn-primary" style={{ fontSize: 13 }} onClick={shareTop3}>
+                  📢 Share with Teachers & Students
+                </button>
+              </div>
+              {top3.length === 0
+                ? <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No results calculated yet.</p>
+                : <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                    {top3.map((s, i) => (
+                      <div key={s._id} style={{
+                        flex: 1, minWidth: 180, padding: '18px 20px', borderRadius: 10,
+                        background: i === 0 ? '#fff8e1' : i === 1 ? '#f5f5f5' : '#fff3e0',
+                        border: `2px solid ${i === 0 ? '#ffc107' : i === 1 ? '#9e9e9e' : '#ff9800'}`,
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ fontSize: 28 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</div>
+                        <div style={{ fontWeight: 'bold', fontSize: 15, marginTop: 6 }}>{s.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Grade {s.grade} — Section {s.section}</div>
+                        <div style={{ fontSize: 20, fontWeight: 'bold', color: '#667eea', marginTop: 8 }}>{s.average}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Average</div>
+                      </div>
+                    ))}
+                  </div>
+              }
+            </div>
+
+            {/* Class rankings */}
+            <div className="card">
+              <h3 style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 14 }}>📋 Class Rankings</h3>
+              <div className="filter-row" style={{ marginBottom: 16 }}>
+                <select value={rankFilter.grade} onChange={e => { const f={...rankFilter,grade:e.target.value}; setRankFilter(f); loadClassRankings(f) }}>
+                  {[9,10,11,12].map(g => <option key={g} value={g}>Grade {g}</option>)}
+                </select>
+                <select value={rankFilter.section} onChange={e => { const f={...rankFilter,section:e.target.value}; setRankFilter(f); loadClassRankings(f) }}>
+                  {['A','B','C','D','E','F','G'].map(s => <option key={s} value={s}>Section {s}</option>)}
+                </select>
+                <select value={rankFilter.academicYear} onChange={e => { const f={...rankFilter,academicYear:e.target.value}; setRankFilter(f); loadClassRankings(f) }}>
+                  {[2024,2025,2026,2027,2028].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <table>
+                <thead>
+                  <tr><th>Rank</th><th>Name</th><th>Student ID</th><th>Section</th><th>Average</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {classRankings.length === 0
+                    ? <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>No results for this class yet.</td></tr>
+                    : classRankings.map(s => (
+                      <tr key={s._id}>
+                        <td style={{ fontWeight: 'bold', color: s.rank <= 3 ? '#667eea' : 'inherit' }}>
+                          {s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : `#${s.rank}`}
+                        </td>
+                        <td>{s.name}</td>
+                        <td>{s.studentId || '—'}</td>
+                        <td>Section {s.section}</td>
+                        <td style={{ fontWeight: 'bold' }}>{s.average}</td>
+                        <td>
+                          <span style={{ color: s.passed ? 'green' : 'red', fontWeight: 'bold' }}>
+                            {s.passed ? 'PASS' : 'FAIL'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Grading Period */}
+        {page === 'gradingPeriod' && (
+          <div>
+            <div className="page-title">Grading Period</div>
+            <div className="card">
+              <h3 style={{ marginBottom: 14, fontSize: 15, color: 'var(--text-secondary)' }}>Create New Grading Period</h3>
+              <form onSubmit={createPeriod}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 12, alignItems: 'end' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Label (e.g. Semester 1 - 2026)</label>
+                    <input type="text" value={periodForm.label}
+                      onChange={e => setPeriodForm({ ...periodForm, label: e.target.value })} required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Open Date</label>
+                    <input type="date" value={periodForm.openDate}
+                      onChange={e => setPeriodForm({ ...periodForm, openDate: e.target.value })} required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Close Date</label>
+                    <input type="date" value={periodForm.closeDate}
+                      onChange={e => setPeriodForm({ ...periodForm, closeDate: e.target.value })} required />
+                  </div>
+                  <div><button type="submit" className="btn btn-primary">Create</button></div>
+                </div>
+              </form>
+            </div>
+            <div className="card">
+              {gradingPeriods.length === 0
+                ? <p style={{ color: 'var(--text-secondary)' }}>No grading periods created yet.</p>
+                : <table>
+                    <thead><tr><th>Label</th><th>Open Date</th><th>Close Date</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                      {gradingPeriods.map(p => {
+                        const now = new Date()
+                        const open  = new Date(p.openDate)
+                        const close = new Date(p.closeDate)
+                        const active  = now >= open && now <= close
+                        const expired = now > close
+                        const upcoming = now < open
+                        return (
+                          <tr key={p._id}>
+                            <td>{p.label}</td>
+                            <td>{new Date(p.openDate).toLocaleDateString()}</td>
+                            <td>{new Date(p.closeDate).toLocaleDateString()}</td>
+                            <td>
+                              {active   && <span style={{ color: '#1e7e34', fontWeight: 'bold' }}>🟢 Open</span>}
+                              {expired  && <span style={{ color: '#c62828' }}>🔴 Closed</span>}
+                              {upcoming && <span style={{ color: '#856404' }}>🟡 Upcoming</span>}
+                            </td>
+                            <td><button className="btn btn-danger" onClick={() => deletePeriod(p._id)}>Delete</button></td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+              }
+            </div>
+          </div>
+        )}
+
+        {/* Notifications */}
+        {page === 'notifications' && (
+          <div>
+            <div className="page-title">
+              Notifications
+              {notifCount > 0 && (
+                <span style={{ marginLeft: 10, background: '#e74c3c', color: '#fff', borderRadius: 20, padding: '2px 10px', fontSize: 13 }}>
+                  {notifCount}
+                </span>
+              )}
+            </div>
+
+            {/* Student registrations */}
+            <div className="card">
+              <h3 style={{ marginBottom: 14, fontSize: 15, color: 'var(--text-secondary)' }}>📝 Pending Student Registrations</h3>
+              {registrations.length === 0
+                ? <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No pending registrations.</p>
+                : registrations.map(r => (
+                  <div key={r._id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontWeight: 'bold' }}>{r.name} <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Grade {r.grade} — {r.academicYear}</span></p>
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{r.email || 'No email'}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn btn-success" style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => approveRegistration(r._id)}>Approve</button>
+                      <button className="btn btn-danger"  style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => rejectRegistration(r._id)}>Reject</button>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+
+            {/* Grade edit requests */}
+            <div className="card">
+              <h3 style={{ marginBottom: 14, fontSize: 15, color: 'var(--text-secondary)' }}>✏️ Pending Grade Edit Requests</h3>
+              {editRequests.filter(r => r.status === 'pending').length === 0
+                ? <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No pending grade edits.</p>
+                : editRequests.filter(r => r.status === 'pending').map(r => (
+                  <div key={r._id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontWeight: 'bold' }}>{r.teacherId?.name || '—'}</p>
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>New score: {r.newScore} — {r.reason}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn btn-success" style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => handleRequest(r._id, 'approved')}>Approve</button>
+                      <button className="btn btn-danger"  style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => handleRequest(r._id, 'rejected')}>Reject</button>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+
+            {/* Profile edit requests */}
+            <div className="card">
+              <h3 style={{ marginBottom: 14, fontSize: 15, color: 'var(--text-secondary)' }}>👤 Pending Profile Edit Requests</h3>
+              {profileRequests.length === 0
+                ? <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No pending profile edits.</p>
+                : profileRequests.map(r => (
+                  <div key={r._id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontWeight: 'bold' }}>{r.userId?.name} <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>({r.userId?.username})</span></p>
+                      {r.requestedName  && <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Name → <strong>{r.requestedName}</strong></p>}
+                      {r.requestedEmail && <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Email → <strong>{r.requestedEmail}</strong></p>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn btn-success" style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => handleProfileRequest(r._id, 'approved')}>Approve</button>
+                      <button className="btn btn-danger"  style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => handleProfileRequest(r._id, 'rejected')}>Reject</button>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        )}
+
         {/* Settings */}
         {page === 'settings' && <Settings />}
 

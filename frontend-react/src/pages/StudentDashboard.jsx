@@ -3,12 +3,14 @@ import { useAuth } from '../context/AuthContext'
 import Sidebar from '../components/Sidebar'
 import Alert from '../components/Alert'
 import ChangePasswordModal from '../components/ChangePasswordModal'
+import SharedTopStudents from '../components/SharedTopStudents'
 import api from '../services/api'
 
 const NAV = [
-  { id: 'profile', icon: '👤', label: 'Profile' },
+  { id: 'profile',  icon: '👤', label: 'Profile' },
   { id: 'register', icon: '📋', label: 'Register' },
-  { id: 'audit', icon: '📊', label: 'Course Audit' },
+  { id: 'audit',    icon: '📊', label: 'Course Audit' },
+  { id: 'top',      icon: '🏆', label: 'Top Students' },
 ]
 
 export default function StudentDashboard() {
@@ -392,6 +394,8 @@ export default function StudentDashboard() {
       </main>
 
       <ChangePasswordModal show={showPwModal} onClose={() => setShowPwModal(false)} onAlert={showAlert} />
+        {/* Top Students */}
+        {page === 'top' && <div style={{ padding: '0' }}><SharedTopStudents /></div>}
     </div>
   )
 }

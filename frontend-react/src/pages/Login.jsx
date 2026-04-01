@@ -11,9 +11,8 @@ export default function Login() {
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [regForm, setRegForm] = useState({
     name: '', email: '', username: '', password: '',
-    grade: '9', academicYear: '2026', photo: null, grade8MinisterResult: null
+    grade: '9', academicYear: '2026', grade8MinisterResult: null
   })
-  const [photoPreview, setPhotoPreview] = useState(null)
   const [ministerPreview, setMinisterPreview] = useState(null)
 
   async function handleLogin(e) {
@@ -30,15 +29,13 @@ export default function Login() {
 
   async function handleRegister(e) {
     e.preventDefault()
-    if (!regForm.photo) { setAlert({ msg: 'Please upload your photo', type: 'error' }); return }
     if (regForm.grade === '9' && !regForm.grade8MinisterResult) {
       setAlert({ msg: 'Grade 8 Minister result is required for Grade 9 registration', type: 'error' }); return
     }
     const fd = new FormData()
     Object.entries(regForm).forEach(([k, v]) => {
-      if (k !== 'photo' && k !== 'grade8MinisterResult' && v !== null) fd.append(k, v)
+      if (k !== 'grade8MinisterResult' && v !== null) fd.append(k, v)
     })
-    fd.append('photo', regForm.photo)
     if (regForm.grade8MinisterResult) fd.append('grade8MinisterResult', regForm.grade8MinisterResult)
     try {
       const res = await axios.post('/api/auth/register', fd)
@@ -47,15 +44,6 @@ export default function Login() {
     } catch (err) {
       setAlert({ msg: err.response?.data?.message || 'Registration failed', type: 'error' })
     }
-  }
-
-  function onPhotoChange(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    setRegForm({ ...regForm, photo: file })
-    const reader = new FileReader()
-    reader.onload = ev => setPhotoPreview(ev.target.result)
-    reader.readAsDataURL(file)
   }
 
   function onMinisterChange(e) {
@@ -119,12 +107,6 @@ export default function Login() {
                 {[2024,2025,2026,2027,2028].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
-            <div className="form-group">
-              <label>Photo (Required)</label>
-              <input type="file" accept="image/jpeg,image/jpg,image/png" onChange={onPhotoChange} required />
-              {photoPreview && <img src={photoPreview} style={{ maxWidth: 200, borderRadius: 5, marginTop: 10, border: '2px solid #667eea' }} />}
-            </div>
-
             {/* Grade 8 minister result — only for grade 9 */}
             {regForm.grade === '9' && (
               <div className="form-group">

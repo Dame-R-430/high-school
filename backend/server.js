@@ -8,13 +8,19 @@ const subjectRoutes = require('./routes/subjects');
 const gradeRoutes = require('./routes/grades');
 const userRoutes = require('./routes/users');
 const registrationRoutes = require('./routes/registrations');
+const profileRequestRoutes = require('./routes/profileRequests');
+const gradingPeriodRoutes  = require('./routes/gradingPeriods');
+const rankingRoutes        = require('./routes/rankings');
 
 // Connect to MongoDB
 connectDB();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true
+}));
 app.use(express.json());
 
 // Routes
@@ -23,6 +29,9 @@ app.use('/api/subjects', subjectRoutes);
 app.use('/api/grades', gradeRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/registrations', registrationRoutes);
+app.use('/api/profile-requests', profileRequestRoutes);
+app.use('/api/grading-periods', gradingPeriodRoutes);
+app.use('/api/rankings', rankingRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

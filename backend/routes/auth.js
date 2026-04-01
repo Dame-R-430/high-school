@@ -48,9 +48,6 @@ router.post('/register', upload.fields([
     const { username, password, name, email, grade, academicYear } = req.body;
     const gradeNum = parseInt(grade);
 
-    if (!req.files?.photo?.[0])
-      return res.status(400).json({ message: 'Photo is required for registration' });
-
     if (gradeNum === 9 && !req.files?.grade8MinisterResult?.[0])
       return res.status(400).json({ message: 'Grade 8 Minister result is required for Grade 9 registration' });
 
@@ -67,13 +64,6 @@ router.post('/register', upload.fields([
     if (duplicateName)
       return res.status(400).json({ message: 'A student with this name is already registered in this grade.' });
 
-    const photoBuffer = req.files.photo[0].buffer;
-    const photoBase64 = photoBuffer.toString('base64');
-    const photoHash = crypto.createHash('md5').update(photoBuffer).digest('hex');
-
-    if (await User.findOne({ photoHash, role: 'student' }))
-      return res.status(400).json({ message: 'This photo is already registered in the system.' });
-
     const userData = {
       username,
       password: bcrypt.hashSync(password, 10),
@@ -82,11 +72,20 @@ router.post('/register', upload.fields([
       grade: gradeNum,
       academicYear: parseInt(academicYear),
       email: email || null,
-      photo: photoBase64,
-      photoHash,
       status: 'pending',
       subjectsSelected: false
     };
+
+    // Photo is optional at registration — student uploads via profile later
+    if (req.files?.photo?.[0]) {
+      const photoBuffer = req.files.photo[0].buffer;
+      const photoBase64 = photoBuffer.toString('base64');
+      const photoHash = crypto.createHash('md5').update(photoBuffer).digest('hex');
+      if (await User.findOne({ photoHash, role: 'student' }))
+        return res.status(400).json({ message: 'This photo is already registered in the system.' });
+      userData.photo = photoBase64;
+      userData.photoHash = photoHash;
+    }
 
     if (gradeNum === 9) {
       const ministerBuffer = req.files.grade8MinisterResult[0].buffer;
