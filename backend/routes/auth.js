@@ -7,6 +7,8 @@ const upload = require('../middleware/upload');
 
 const router = express.Router();
 
+const RegistrationPeriod = require('../models/RegistrationPeriod');
+
 function getEthiopianYear() {
   const now = new Date();
   const ethYear = now.getMonth() >= 8 ? now.getFullYear() - 7 : now.getFullYear() - 8;
@@ -54,6 +56,13 @@ router.post('/register', upload.fields([
     const { username, password, name: rawName, email, grade, academicYear } = req.body;
     const gradeNum = parseInt(grade);
     const name = toTitleCase(rawName || '');
+
+    // Check registration period is open
+    const now = new Date();
+    const activePeriod = await RegistrationPeriod.findOne({ openDate: { $lte: now }, closeDate: { $gte: now } });
+    if (!activePeriod) {
+      return res.status(403).json({ message: 'Student registration is currently closed. Please check back later.' });
+    }
 
     if (gradeNum === 9 && !req.files?.grade8MinisterResult?.[0])
       return res.status(400).json({ message: 'Grade 8 Minister result is required for Grade 9 registration' });

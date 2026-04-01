@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
@@ -14,6 +14,13 @@ export default function Login() {
     grade: '9', academicYear: '2026', grade8MinisterResult: null
   })
   const [ministerPreview, setMinisterPreview] = useState(null)
+  const [regPeriodOpen, setRegPeriodOpen] = useState(null)
+
+  useEffect(() => {
+    axios.get('/api/registration-periods/active')
+      .then(res => setRegPeriodOpen(!!res.data))
+      .catch(() => setRegPeriodOpen(false))
+  }, [])
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -81,6 +88,14 @@ export default function Login() {
       ) : (
         <div>
           <h2>Student Registration</h2>
+
+          {/* Registration period status */}
+          {regPeriodOpen === false && (
+            <div className="alert alert-error" style={{ marginBottom: 16 }}>
+              🔴 Student registration is currently closed. Please contact the school administration.
+            </div>
+          )}
+
           <form onSubmit={handleRegister}>
             {[
               { label: 'Full Name', key: 'name', type: 'text' },
@@ -121,7 +136,9 @@ export default function Login() {
               </div>
             )}
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Register</button>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={regPeriodOpen === false}>
+              {regPeriodOpen === false ? 'Registration Closed' : 'Register'}
+            </button>
           </form>
           <p style={{ textAlign: 'center', marginTop: 20 }}>
             Already have an account? <a href="#" onClick={e => { e.preventDefault(); setView('login') }}>Login</a>

@@ -25,7 +25,8 @@ const NAV = [
   { id: 'subj12',        icon: '·',  label: 'Grade 12', indent: true },
   { id: 'grades',        icon: '📊', label: 'Grades' },
   { id: 'rankings',      icon: '🏆', label: 'Rankings' },
-  { id: 'gradingPeriod', icon: '📅', label: 'Grading Period' },
+  { id: 'gradingPeriod',       icon: '📅', label: 'Grading Period' },
+  { id: 'registrationPeriod', icon: '📋', label: 'Registration Period' },
   { id: 'editRequests',  icon: '✏️', label: 'Edit Requests' },
   { id: 'notifications', icon: '🔔', label: 'Notifications' },
   { id: 'settings',      icon: '⚙️', label: 'Settings' },
@@ -52,6 +53,8 @@ export default function AdminDashboard() {
   const [notifCount, setNotifCount] = useState(0)
   const [gradingPeriods, setGradingPeriods] = useState([])
   const [periodForm, setPeriodForm] = useState({ label: '', openDate: '', closeDate: '' })
+  const [regPeriods, setRegPeriods] = useState([])
+  const [regPeriodForm, setRegPeriodForm] = useState({ label: '', openDate: '', closeDate: '' })
   const [classRankings, setClassRankings] = useState([])
   const [top3, setTop3] = useState([])
   const [rankFilter, setRankFilter] = useState({ grade: '9', section: 'A', academicYear: new Date().getFullYear() })
@@ -101,6 +104,7 @@ export default function AdminDashboard() {
     if (id === 'editRequests') loadEditRequests()
     if (id === 'notifications') { loadProfileRequests(); loadRegistrations(); loadEditRequests() }
     if (id === 'gradingPeriod') loadGradingPeriods()
+    if (id === 'registrationPeriod') loadRegPeriods()
     if (id === 'rankings') { loadClassRankings(); loadTop3() }
   }
 
@@ -273,6 +277,26 @@ export default function AdminDashboard() {
     await api.delete(`/grading-periods/${id}`)
     showAlert('Grading period deleted')
     loadGradingPeriods()
+  }
+
+  async function loadRegPeriods() {
+    const data = await api.get('/registration-periods')
+    setRegPeriods(data)
+  }
+  async function createRegPeriod(e) {
+    e.preventDefault()
+    try {
+      await api.post('/registration-periods', regPeriodForm)
+      showAlert('Registration period created')
+      setRegPeriodForm({ label: '', openDate: '', closeDate: '' })
+      loadRegPeriods()
+    } catch (err) { showAlert(err.message || 'Failed', 'error') }
+  }
+  async function deleteRegPeriod(id) {
+    if (!confirm('Delete this registration period?')) return
+    await api.delete(`/registration-periods/${id}`)
+    showAlert('Registration period deleted')
+    loadRegPeriods()
   }
 
   async function loadClassRankings(filter = rankFilter) {
@@ -680,6 +704,65 @@ export default function AdminDashboard() {
                               {upcoming && <span style={{ color: '#856404' }}>🟡 Upcoming</span>}
                             </td>
                             <td><button className="btn btn-danger" onClick={() => deletePeriod(p._id)}>Delete</button></td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+              }
+            </div>
+          </div>
+        )}
+
+        {/* Registration Period */}
+        {page === 'registrationPeriod' && (
+          <div>
+            <div className="page-title">Registration Period</div>
+            <div className="card">
+              <h3 style={{ marginBottom: 14, fontSize: 15, color: 'var(--text-secondary)' }}>Create New Registration Period</h3>
+              <form onSubmit={createRegPeriod}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 12, alignItems: 'end' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Label (e.g. Enrollment 2026)</label>
+                    <input type="text" value={regPeriodForm.label}
+                      onChange={e => setRegPeriodForm({ ...regPeriodForm, label: e.target.value })} required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Open Date</label>
+                    <input type="date" value={regPeriodForm.openDate}
+                      onChange={e => setRegPeriodForm({ ...regPeriodForm, openDate: e.target.value })} required />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Close Date</label>
+                    <input type="date" value={regPeriodForm.closeDate}
+                      onChange={e => setRegPeriodForm({ ...regPeriodForm, closeDate: e.target.value })} required />
+                  </div>
+                  <div><button type="submit" className="btn btn-primary">Create</button></div>
+                </div>
+              </form>
+            </div>
+            <div className="card">
+              {regPeriods.length === 0
+                ? <p style={{ color: 'var(--text-secondary)' }}>No registration periods created yet.</p>
+                : <table>
+                    <thead><tr><th>Label</th><th>Open Date</th><th>Close Date</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                      {regPeriods.map(p => {
+                        const now = new Date()
+                        const active   = now >= new Date(p.openDate) && now <= new Date(p.closeDate)
+                        const expired  = now > new Date(p.closeDate)
+                        const upcoming = now < new Date(p.openDate)
+                        return (
+                          <tr key={p._id}>
+                            <td>{p.label}</td>
+                            <td>{new Date(p.openDate).toLocaleDateString()}</td>
+                            <td>{new Date(p.closeDate).toLocaleDateString()}</td>
+                            <td>
+                              {active   && <span style={{ color: '#1e7e34', fontWeight: 'bold' }}>🟢 Open</span>}
+                              {expired  && <span style={{ color: '#c62828' }}>🔴 Closed</span>}
+                              {upcoming && <span style={{ color: '#856404' }}>🟡 Upcoming</span>}
+                            </td>
+                            <td><button className="btn btn-danger" onClick={() => deleteRegPeriod(p._id)}>Delete</button></td>
                           </tr>
                         )
                       })}
