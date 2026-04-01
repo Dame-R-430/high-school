@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import AdminDashboard from './pages/AdminDashboard'
 import TeacherDashboard from './pages/TeacherDashboard'
 import StudentDashboard from './pages/StudentDashboard'
+import DirectorDashboard from './pages/DirectorDashboard'
 
 function PrivateRoute({ children, role }) {
   const { user } = useAuth()
@@ -28,6 +29,9 @@ export default function App() {
             } />
             <Route path="/student" element={
               <PrivateRoute role="student"><StudentDashboard /></PrivateRoute>
+            } />
+            <Route path="/director" element={
+              <PrivateRoute role="director"><DirectorDashboard /></PrivateRoute>
             } />
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>

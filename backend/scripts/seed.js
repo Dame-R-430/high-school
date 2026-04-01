@@ -24,6 +24,15 @@ async function seed() {
       status: 'approved'
     });
 
+    // Create director
+    await User.create({
+      username: 'director',
+      password: bcrypt.hashSync('director123', 10),
+      role: 'director',
+      name: 'School Director',
+      status: 'approved'
+    });
+
     // Create sample teacher
     await User.create({
       username: 'teacher1',
@@ -39,12 +48,12 @@ async function seed() {
       username: 'student1',
       password: bcrypt.hashSync('student123', 10),
       role: 'student',
-      name: 'Jane Student',
+      name: 'Abebe Kebede',
       grade: 9,
       section: 'A',
       academicYear: 2026,
-      studentId: 'STU2024001',
-      email: 'student@example.com',
+      studentId: '0001/18',
+      email: 'abebe@example.com',
       status: 'approved',
       registrationOrder: 1
     });

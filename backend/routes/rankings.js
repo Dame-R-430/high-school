@@ -26,7 +26,7 @@ async function getRankedStudents(query = {}) {
 
 // GET /rankings/class?grade=9&section=A&academicYear=2026
 // Returns students ranked within a specific class
-router.get('/class', authenticateToken, authorizeRoles('admin', 'teacher'), async (req, res) => {
+router.get('/class', authenticateToken, authorizeRoles('admin', 'teacher', 'director'), async (req, res) => {
   try {
     const { grade, section, academicYear } = req.query;
     const query = {};

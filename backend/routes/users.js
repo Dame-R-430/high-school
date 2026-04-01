@@ -7,6 +7,13 @@ const TeacherCourse = require('../models/TeacherCourse');
 
 const router = express.Router();
 
+function toTitleCase(str) {
+  return (str || '').trim().replace(/\s+/g, ' ')
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
 router.get('/students', authenticateToken, authorizeRoles('teacher', 'admin'), async (req, res) => {
   try {
     const students = await User.find({ role: 'student', status: 'approved' })
@@ -50,6 +57,38 @@ router.put('/profile/photo', authenticateToken, async (req, res) => {
   }
 });
 
+// Update own profile info (admin and director can edit directly)
+router.put('/profile/info', authenticateToken, async (req, res) => {
+  try {
+    const { name: rawName, email } = req.body;
+    const name = rawName ? toTitleCase(rawName) : null;
+    if (!name && !email) return res.status(400).json({ message: 'Provide name or email' });
+    const update = {};
+    if (name)  update.name  = name;
+    if (email) update.email = email;
+    await User.findByIdAndUpdate(req.user.id, update);
+    res.json({ message: 'Profile updated successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update profile' });
+  }
+});
+
+// Admin edits a student's name, email, and studentId
+router.put('/students/:id/info', authenticateToken, authorizeRoles('admin'), async (req, res) => {
+  try {
+    const { name: rawName, email, studentId } = req.body;
+    const student = await User.findOne({ _id: req.params.id, role: 'student' });
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+    if (rawName)   student.name      = toTitleCase(rawName);
+    if (email !== undefined) student.email = email;
+    if (studentId) student.studentId = studentId;
+    await student.save();
+    res.json({ message: 'Student info updated' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update student info' });
+  }
+}); 
+
 // Select subjects (Student only)
 router.post('/select-subjects', authenticateToken, authorizeRoles('student'), async (req, res) => {
   try {
@@ -88,7 +127,7 @@ router.get('/by-grade', authenticateToken, authorizeRoles('teacher', 'admin'), a
     }
 
     const students = await User.find(query)
-      .select('name studentId grade academicYear section selectedSubjects')
+      .select('name studentId grade academicYear section selectedSubjects email')
       .populate('selectedSubjects', 'name grade');
 
     res.json(students);
@@ -113,7 +152,8 @@ router.get('/teachers', authenticateToken, authorizeRoles('admin'), async (req, 
 // Add new teacher (Admin only)
 router.post('/teachers', authenticateToken, authorizeRoles('admin'), async (req, res) => {
   try {
-    const { name, username, password, email } = req.body;
+    const { name: rawName, username, password, email } = req.body;
+    const name = toTitleCase(rawName);
     
     const existingUser = await User.findOne({ username });
     if (existingUser) {

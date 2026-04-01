@@ -13,6 +13,13 @@ function getEthiopianYear() {
   return ethYear % 100;
 }
 
+function toTitleCase(str) {
+  return str.trim().replace(/\s+/g, ' ')
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -24,7 +31,6 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ message: 'Your account is pending admin approval. Please wait for approval before logging in.' });
     if (user.role === 'student' && user.status === 'rejected')
       return res.status(403).json({ message: 'Your registration was rejected. Please contact the administrator.' });
-
     const token = jwt.sign(
       { id: user._id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
@@ -45,8 +51,9 @@ router.post('/register', upload.fields([
   { name: 'grade8MinisterResult', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const { username, password, name, email, grade, academicYear } = req.body;
+    const { username, password, name: rawName, email, grade, academicYear } = req.body;
     const gradeNum = parseInt(grade);
+    const name = toTitleCase(rawName || '');
 
     if (gradeNum === 9 && !req.files?.grade8MinisterResult?.[0])
       return res.status(400).json({ message: 'Grade 8 Minister result is required for Grade 9 registration' });

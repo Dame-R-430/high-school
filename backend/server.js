@@ -11,6 +11,7 @@ const registrationRoutes = require('./routes/registrations');
 const profileRequestRoutes = require('./routes/profileRequests');
 const gradingPeriodRoutes  = require('./routes/gradingPeriods');
 const rankingRoutes        = require('./routes/rankings');
+const directorRoutes       = require('./routes/director');
 
 // Connect to MongoDB
 connectDB();
@@ -32,6 +33,7 @@ app.use('/api/registrations', registrationRoutes);
 app.use('/api/profile-requests', profileRequestRoutes);
 app.use('/api/grading-periods', gradingPeriodRoutes);
 app.use('/api/rankings', rankingRoutes);
+app.use('/api/director', directorRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

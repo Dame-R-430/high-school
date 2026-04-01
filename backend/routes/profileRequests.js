@@ -50,7 +50,7 @@ router.put('/:id', authenticateToken, authorizeRoles('admin'), async (req, res) 
     if (status === 'approved') {
       const user = await User.findById(request.userId);
       if (user) {
-        if (request.requestedName)  user.name  = request.requestedName;
+        if (request.requestedName)  user.name  = request.requestedName.trim().replace(/\s+/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
         if (request.requestedEmail) user.email = request.requestedEmail;
         await user.save();
       }

@@ -21,7 +21,7 @@ export default function Login() {
       const res = await axios.post('/api/auth/login', loginForm)
       login(res.data.user, res.data.token)
       const role = res.data.user.role
-      navigate(role === 'admin' ? '/admin' : role === 'teacher' ? '/teacher' : '/student')
+      navigate(role === 'admin' ? '/admin' : role === 'teacher' ? '/teacher' : role === 'director' ? '/director' : '/student')
     } catch (err) {
       setAlert({ msg: err.response?.data?.message || 'Login failed', type: 'error' })
     }

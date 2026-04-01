@@ -121,6 +121,20 @@ export default function AdminDashboard() {
   }
 
   // ── Students ──
+  const [editingStudent, setEditingStudent] = useState(null)
+
+  async function saveStudentInfo(id) {
+    try {
+      await api.put(`/users/students/${id}/info`, {
+        name: editingStudent.name,
+        email: editingStudent.email,
+        studentId: editingStudent.studentId
+      })
+      showAlert('Student info updated')
+      setEditingStudent(null)
+      loadStudentsByGrade(studentGrade)
+    } catch (err) { showAlert(err.message || 'Failed', 'error') }
+  }
   async function loadStudentsByGrade(grade) {
     let url = `/users/by-grade?grade=${grade}`
     if (filterYear) url += `&academicYear=${filterYear}`
@@ -352,18 +366,52 @@ export default function AdminDashboard() {
                 </select>
               </div>
               <table>
-                <thead><tr><th>Student ID</th><th>Name</th><th>Section</th><th>Year</th></tr></thead>
+                <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Section</th><th>Year</th><th>Action</th></tr></thead>
                 <tbody>
                   {students.length === 0
-                    ? <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>No students in Grade {studentGrade}</td></tr>
-                    : students.map(s => (
-                      <tr key={s._id}>
-                        <td>{s.studentId || '—'}</td>
-                        <td>{s.name}</td>
-                        <td>{s.section || '—'}</td>
-                        <td>{s.academicYear}</td>
-                      </tr>
-                    ))}
+                    ? <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>No students in Grade {studentGrade}</td></tr>
+                    : students.map(s => {
+                      const editing = editingStudent?.id === s._id
+                      return (
+                        <tr key={s._id}>
+                          <td>
+                            {editing
+                              ? <input type="text" value={editingStudent.studentId}
+                                  onChange={e => setEditingStudent({ ...editingStudent, studentId: e.target.value })}
+                                  style={{ width: 90, padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 4, background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: 12 }} />
+                              : s.studentId || '—'}
+                          </td>
+                          <td>
+                            {editing
+                              ? <input type="text" value={editingStudent.name} autoFocus
+                                  onChange={e => setEditingStudent({ ...editingStudent, name: e.target.value })}
+                                  style={{ width: 130, padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 4, background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: 12 }} />
+                              : s.name}
+                          </td>
+                          <td>
+                            {editing
+                              ? <input type="email" value={editingStudent.email}
+                                  onChange={e => setEditingStudent({ ...editingStudent, email: e.target.value })}
+                                  style={{ width: 150, padding: '3px 6px', border: '1px solid var(--border-color)', borderRadius: 4, background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: 12 }} />
+                              : s.email || '—'}
+                          </td>
+                          <td>{s.section || '—'}</td>
+                          <td>{s.academicYear}</td>
+                          <td style={{ display: 'flex', gap: 6 }}>
+                            {editing
+                              ? <>
+                                  <button className="btn btn-success" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => saveStudentInfo(s._id)}>Save</button>
+                                  <button className="btn" style={{ padding: '4px 10px', fontSize: 12, background: '#888', color: '#fff' }} onClick={() => setEditingStudent(null)}>✕</button>
+                                </>
+                              : <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: 12 }}
+                                  onClick={() => setEditingStudent({ id: s._id, name: s.name, email: s.email || '', studentId: s.studentId || '' })}>
+                                  ✏️ Edit
+                                </button>
+                            }
+                          </td>
+                        </tr>
+                      )
+                    })}
                 </tbody>
               </table>
             </div>

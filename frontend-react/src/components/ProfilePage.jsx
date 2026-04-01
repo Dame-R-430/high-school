@@ -39,11 +39,20 @@ export default function ProfilePage({ onAlert }) {
   async function submitEditRequest(e) {
     e.preventDefault()
     try {
-      await api.post('/profile-requests', editForm)
-      onAlert('Edit request submitted — waiting for admin approval')
-      setEditMode(false)
-      load()
-    } catch (err) { onAlert(err.message || 'Failed to submit request', 'error') }
+      // Admin and director edit directly — no approval needed
+      if (profile.role === 'admin' || profile.role === 'director') {
+        await api.put('/users/profile/info', editForm)
+        onAlert('Profile updated successfully')
+        setEditMode(false)
+        load()
+      } else {
+        // Teacher goes through approval flow
+        await api.post('/profile-requests', editForm)
+        onAlert('Edit request submitted — waiting for admin approval')
+        setEditMode(false)
+        load()
+      }
+    } catch (err) { onAlert(err.message || 'Failed to submit', 'error') }
   }
 
   if (!profile) return <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
@@ -91,14 +100,14 @@ export default function ProfilePage({ onAlert }) {
               </div>
             )}
 
-            {/* Only teachers can request edits */}
-            {profile.role === 'teacher' && (
+            {/* Admin and director edit directly; teachers go through approval */}
+            {(profile.role === 'teacher' || profile.role === 'admin' || profile.role === 'director') && (
               <button
                 className="upload-btn"
                 style={{ marginTop: 16 }}
                 onClick={() => setEditMode(true)}
               >
-                ✏️ Request Info Edit
+                ✏️ Edit Info
               </button>
             )}
           </div>
@@ -106,7 +115,9 @@ export default function ProfilePage({ onAlert }) {
           /* Edit form */
           <form onSubmit={submitEditRequest} style={{ marginTop: 20 }}>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
-              Changes require admin approval before taking effect.
+              {profile.role === 'teacher'
+                ? 'Changes require admin approval before taking effect.'
+                : 'Changes are applied immediately.'}
             </p>
             <div className="form-group">
               <label>Name</label>
